@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>لوحة المؤشرات المكانيّة الشاملة - الأراضي والمباني والشركات</title>
+<title>لوحة مؤشرات الأراضي المكانيّة والشاملة</title>
 
 <!-- Cairo Font -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,7 +35,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- Proj4js & Proj4Leaflet for Dynamic UTM 32635 Reprojection -->
+<!-- Proj4js & Proj4Leaflet for UTM 32635 Reprojection -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.min.js"></script>
 
@@ -53,119 +53,333 @@
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased">
 
-  <!-- Header Navigation -->
-  <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-50 shadow-md">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center space-x-3 space-x-reverse">
-        <div class="bg-brand-600 p-2.5 rounded-xl shadow-lg shadow-brand-500/30">
-          <i class="fa-solid fa-map-location-dot text-xl text-white"></i>
+  <!-- Navigation Header -->
+  <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl border-b border-slate-800 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+        
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 bg-blue-600/30 border border-blue-400/30 rounded-xl backdrop-blur-md text-blue-400">
+            <i class="fa-solid me-1 fa-map-location-dot text-2xl"></i>
+          </div>
+          <div>
+            <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight flex items-center gap-2">
+              لوحة مؤشرات أداء الأراضي المكانيّة
+              <span id="dataBadge" class="text-xs font-normal bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2.5 py-0.5 rounded-full">جاري التحميل...</span>
+            </h1>
+            <p class="text-xs text-slate-300 mt-0.5 flex items-center gap-1.5">
+              <i class="fa-solid fa-location-dot text-red-400"></i>
+              تحليل استخدامات الأراضي وجودة البيانات ودعم القرار (مطروح والجيزة)
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 class="font-extrabold text-lg leading-tight">لوحة المؤشرات المكانيّة الشاملة</h1>
-          <p class="text-xs text-slate-400">إدارة وتحليل بيانات الأراضي والمباني والشركات</p>
+
+        <div class="flex items-center gap-3 self-end md:self-auto">
+          <button onclick="openModal()" class="flex items-center gap-2 bg-indigo-600/80 hover:bg-indigo-600 text-white px-3.5 py-2 rounded-lg text-xs font-bold transition shadow-sm border border-indigo-400/30">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>خرائط المخطط والحدود</span>
+          </button>
+          
+          <button id="darkToggle" onclick="toggleDarkMode()" class="p-2 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg text-sm border border-slate-700 transition">
+            <i class="fa-solid fa-moon"></i>
+          </button>
         </div>
-      </div>
-      <div class="flex items-center gap-3">
-        <span id="dataBadge" class="text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full flex items-center gap-1.5">
-          <i class="fa-solid fa-spinner fa-spin"></i> جاري تحميل البيانات...
-        </span>
+
       </div>
     </div>
   </header>
 
-  <!-- Main Container -->
-  <main class="max-w-7xl mx-auto w-full px-4 py-6 flex-1 flex flex-col gap-6">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
 
-    <!-- Filter Bar -->
-    <section class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700/60 transition-all">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
-          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">بحث باسم المالك / المعرّف</label>
-          <div class="relative">
-            <input type="text" id="searchInput" placeholder="ابحث هنا..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none transition">
-            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400"></i>
+    <!-- Prototype Warning Notice -->
+    <div class="bg-amber-500/10 border-r-4 border-amber-500 p-4 rounded-xl text-amber-800 dark:text-amber-200 text-xs sm:text-sm flex items-start gap-3 shadow-sm">
+      <i class="fa-solid fa-triangle-exclamation text-amber-500 text-lg mt-0.5"></i>
+      <div class="leading-relaxed">
+        <strong>لوحة الحصر الجغرافي الفعلي:</strong> تعرض هذه اللوحة البيانات المكانية المستخرجة من قواعد البيانات الجغرافية (GDB) مع إسقاطات UTM 32635 وتحويلها اللحظي للإحداثيات الجغرافية.
+      </div>
+    </div>
+
+    <!-- KPI Metric Cards Grid -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      
+      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-4 shadow-sm hover:shadow-md transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-500 dark:text-slate-400">عدد السجلات</span>
+          <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-list-check"></i>
           </div>
         </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">التصنيف الرئيسي</label>
-          <select id="mainCatSelect" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none transition">
-            <option value="">الكل</option>
-          </select>
+        <div class="text-2xl font-black mt-2 text-slate-800 dark:text-slate-100" id="kpiCount">—</div>
+        <p class="text-[11px] text-slate-400 mt-1">وفق الفلتر والموقع المحدد</p>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-4 shadow-sm hover:shadow-md transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-500 dark:text-slate-400">إجمالي المساحات</span>
+          <div class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-chart-area"></i>
+          </div>
         </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">التصنيف الفرعي</label>
-          <select id="subCatSelect" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none transition">
-            <option value="">الكل</option>
-          </select>
+        <div class="text-xl font-black mt-2 text-slate-800 dark:text-slate-100" id="kpiTotalArea">—</div>
+        <p class="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1" id="kpiTotalEgyptArea">— فدان</p>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-4 shadow-sm hover:shadow-md transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-500 dark:text-slate-400">متوسط مساحة السجل</span>
+          <div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-calculator"></i>
+          </div>
         </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">المحافظة</label>
-          <select id="govSelect" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none transition">
-            <option value="">الكل</option>
-          </select>
+        <div class="text-xl font-black mt-2 text-slate-800 dark:text-slate-100" id="kpiAvgArea">—</div>
+        <p class="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold mt-1" id="kpiAvgEgyptArea">— فدان</p>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-4 shadow-sm hover:shadow-md transition">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-500 dark:text-slate-400">ملكية تحتاج مراجعة</span>
+          <div class="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-user-xmark"></i>
+          </div>
+        </div>
+        <div class="text-2xl font-black mt-2 text-rose-600 dark:text-rose-400" id="kpiMissing">—</div>
+        <p class="text-[11px] text-slate-400 mt-1">مالك غير محدد أو غير مستدل عليه</p>
+      </div>
+
+    </section>
+
+    <!-- GIS Interactive Map Section -->
+    <section class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+      <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50 dark:bg-slate-800/50">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-earth-africa text-blue-600 dark:text-blue-400"></i>
+          <h2 class="font-bold text-sm sm:text-base">خريطة الحصر الجغرافي التفاعلية</h2>
+        </div>
+        
+        <!-- Legend & Controls -->
+        <div class="flex items-center gap-2 text-xs flex-wrap">
+          <span class="text-slate-500 dark:text-slate-400 font-medium ml-1">التصنيفات:</span>
+          <span class="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-500/30"><span class="w-2.5 h-2.5 rounded-full bg-[#10b981]"></span>مبنى خرساني</span>
+          <span class="inline-flex items-center gap-1 bg-orange-500/10 text-orange-700 dark:text-orange-300 font-bold px-2 py-0.5 rounded border border-orange-500/30"><span class="w-2.5 h-2.5 rounded-full bg-[#f97316]"></span>مخزن / سكن</span>
+          <span class="inline-flex items-center gap-1 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 font-bold px-2 py-0.5 rounded border border-cyan-500/30"><span class="w-2.5 h-2.5 rounded-full bg-[#06b6d4]"></span>خدمات ومرافق</span>
+          <span class="inline-flex items-center gap-1 bg-purple-500/10 text-purple-700 dark:text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/30"><span class="w-2.5 h-2.5 rounded-full bg-[#a855f7]"></span>أخرى</span>
+        </div>
+      </div>
+
+      <!-- Map Container -->
+      <div id="gisMap" class="w-full h-[450px] z-10 bg-slate-100 dark:bg-slate-900"></div>
+      
+      <div class="px-4 py-2 bg-slate-50 dark:bg-slate-800/80 text-[11px] text-slate-500 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+        <span>* انقر على أي مضلع في الخريطة لاستعراض تفاصيله وإبرازه في الجدول بالأسفل.</span>
+        <span class="font-mono text-slate-400">EPSG:32635 (UTM 35N) ➔ EPSG:4326 (WGS84)</span>
+      </div>
+    </section>
+
+    <!-- Visual Charts Section -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-5 shadow-sm">
+        <h2 class="font-bold text-slate-800 dark:text-slate-100 text-sm sm:text-base mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie text-blue-500"></i>
+          توزيع عدد السجلات حسب المحافظة
+        </h2>
+        <div class="h-[260px] relative">
+          <canvas id="govChart"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-5 shadow-sm">
+        <h2 class="font-bold text-slate-800 dark:text-slate-100 text-sm sm:text-base mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-chart-column text-indigo-500"></i>
+          أكبر 6 قطع من حيث المساحة (م²)
+        </h2>
+        <div class="h-[260px] relative">
+          <canvas id="areaChart"></canvas>
         </div>
       </div>
     </section>
 
-    <!-- Map View Section -->
-    <section class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700/60">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-          <i class="fa-solid fa-earth-africa text-brand-500"></i> الخريطة التفاعلية للمواقع
-        </h2>
-      </div>
-      <div id="gisMap" class="w-full h-[450px] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700"></div>
-    </section>
+    <!-- Spatial Table & Advanced Filtering Section -->
+    <section class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl shadow-sm overflow-hidden p-5">
+      
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+        <div>
+          <h2 class="font-bold text-slate-800 dark:text-slate-100 text-base flex items-center gap-2">
+            <i class="fa-solid fa-magnifying-glass-location text-emerald-500"></i>
+            استكشاف وجدول بيانات القطع المحصورة
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">تصفية وبحث متقدم مع إمكانية التفاعل والمزامنة المباشرة مع الخريطة</p>
+        </div>
 
-    <!-- Data Table Section -->
-    <section class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700/60 overflow-hidden">
-      <div class="p-4 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
-        <h2 class="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-          <i class="fa-solid fa-table text-brand-500"></i> جدول البيانات المكانيّة
-        </h2>
-        <span id="tableCount" class="text-xs text-slate-500 dark:text-slate-400 font-medium"></span>
+        <div class="flex items-center gap-2 self-end md:self-auto">
+          <button onclick="exportCSV()" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-lg transition font-semibold">
+            <i class="fa-solid fa-file-excel"></i> تصدير CSV
+          </button>
+        </div>
       </div>
-      <div class="overflow-x-auto custom-scrollbar">
-        <table class="w-full text-right text-sm">
-          <thead class="bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 font-bold text-xs uppercase">
+
+      <!-- Filters Toolbar -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+        <div>
+          <input id="searchInput" type="text" placeholder="ابحث برقم المعرّف (OBJECTID) أو اسم المالك..." 
+            class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+
+        <div>
+          <select id="govSelect" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="">جميع المحافظات</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <select id="statusSelect" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="">جميع حالات المراجعة</option>
+            <option value="needs_review">تحتاج مراجعة مالك</option>
+            <option value="verified">مراجعة مكتملة</option>
+          </select>
+
+          <button onclick="resetFilters()" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs px-3 py-2 rounded-lg transition whitespace-nowrap font-medium">
+            إعادة ضبط
+          </button>
+        </div>
+      </div>
+
+      <!-- Data Table -->
+      <div class="overflow-x-auto custom-scrollbar border border-slate-200 dark:border-slate-700 rounded-xl">
+        <table class="w-full text-right text-xs whitespace-nowrap">
+          <thead class="bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
             <tr>
-              <th class="p-3.5">الكود / ID</th>
-              <th class="p-3.5">اسم المالك / الجهة</th>
-              <th class="p-3.5">الوصف / التصنيف</th>
-              <th class="p-3.5">المساحة (م²)</th>
-              <th class="p-3.5">المحافظة</th>
-              <th class="p-3.5">المركز / القسم</th>
-              <th class="p-3.5">القرية / الشياخة</th>
-              <th class="p-3.5 text-center">التكبير</th>
+              <th class="p-3">المعرّف (OBJECTID)</th>
+              <th class="p-3">اسم المالك / الجهة</th>
+              <th class="p-3">الوصف الإنشائي</th>
+              <th class="p-3">المحافظة / المركز</th>
+              <th class="p-3">المساحة (م²)</th>
+              <th class="p-3">حالة المراجعة</th>
+              <th class="p-3 text-center">إجراءات</th>
             </tr>
           </thead>
-          <tbody id="tableBody" class="divide-y divide-slate-100 dark:divide-slate-700/50"></tbody>
+          <tbody id="tableRows" class="divide-y divide-slate-200 dark:divide-slate-700/50">
+            <!-- Dynamic Rows -->
+          </tbody>
         </table>
       </div>
-      
-      <!-- Pagination -->
-      <div class="p-4 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
-        <button id="prevBtn" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold disabled:opacity-50">السابق</button>
-        <span id="pageInfo" class="text-xs text-slate-500 dark:text-slate-400 font-bold"></span>
-        <button id="nextBtn" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold disabled:opacity-50">التالي</button>
+
+      <!-- Table Footer / Stats -->
+      <div class="mt-3 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-500 dark:text-slate-400 gap-2">
+        <span id="resultCountStats">جاري تحميل النتائج...</span>
+        <span class="text-[11px] text-slate-400">انقر على زر "تحديد بالخريطة" للتكبير والتركيز المباشر على المضلع الجغرافي.</span>
       </div>
+
+    </section>
+
+    <!-- Qualitative Notes & Plan Guidelines -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-5 shadow-sm">
+        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-clipboard-check text-blue-500"></i>
+          ملاحظات وتوصيات جودة البيانات المكانيّة
+        </h3>
+        <ul class="space-y-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed list-disc list-inside">
+          <li>توحيد تنسيق المعرّفات الجغرافية (OBJECTID) وإزالة المسافات والأحرف الزائدة.</li>
+          <li>مراجعة القطع ذات الملكيات غير المحددة واختبار التداخلات بين السجلات.</li>
+          <li>مقارنة المساحة الهندسية (المحسوبة مكانياً) مع مساحات الحصر الورقية بالقطع والقراريط.</li>
+          <li>تطبيق معايير تصنيف الاستخدامات الموحدة للبيانات الجغرافية مع حفظ الوصف الأصلي.</li>
+        </ul>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-5 shadow-sm">
+        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-list-ol text-emerald-500"></i>
+          مراحل خطة العمل التنفيذية
+        </h3>
+        <ol class="space-y-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed list-decimal list-inside">
+          <li>تنظيف وقواعد البيانات المكانية والتحقق من طوبولوجيا المضلعات (Topology).</li>
+          <li>إعادة الإسقاط لنظام الإحداثيات الموحد (UTM Zone 35N).</li>
+          <li>اعتماد التصنيف النهائي واستخراج تقارير التغير العمراني والزراعي.</li>
+          <li>رفع البيانات إلى الجيوبورتال (Geoportal) للربط مع متخذي القرار.</li>
+        </ol>
+      </div>
+
     </section>
 
   </main>
 
-  <script>
-  // تعريف إسقاط UTM Zone 35N لمصر
+  <footer class="bg-slate-900 text-slate-400 text-xs text-center py-6 border-t border-slate-800 mt-8">
+    <div class="max-w-7xl mx-auto px-4">
+      لوحة مؤشرات التحليل المكاني ودعم القرار &copy; 2026
+    </div>
+  </footer>
+
+  <!-- Modal for Reference Snapshots & Master Plan -->
+  <div id="snapshotModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl max-w-4xl w-full p-5 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-3">
+        <h3 class="font-bold text-base text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-map text-indigo-500"></i>
+          خرائط المخطط التوجيهي والحدود الإدارية
+        </h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/50">
+          <h4 class="font-bold text-xs text-slate-700 dark:text-slate-300 mb-2">المخطط الاستراتيجي والتكتل العمراني</h4>
+          <div class="h-48 bg-slate-200 dark:bg-slate-700 rounded-lg flex items-center justify-center text-slate-500 text-xs overflow-hidden relative group">
+            <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=800&q=80" alt="Master Plan" class="w-full h-full object-cover">
+          </div>
+        </div>
+
+        <div class="border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/50">
+          <h4 class="font-bold text-xs text-slate-700 dark:text-slate-300 mb-2">الحدود الإدارية وحرَم الترع والخدمات</h4>
+          <div class="h-48 bg-slate-200 dark:bg-slate-700 rounded-lg flex items-center justify-center text-slate-500 text-xs overflow-hidden relative group">
+            <img src="https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?auto=format&fit=crop&w=800&q=80" alt="Boundaries" class="w-full h-full object-cover">
+          </div>
+        </div>
+      </div>
+
+      <div class="text-left pt-2 border-t border-slate-200 dark:border-slate-700">
+        <button onclick="closeModal()" class="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs px-4 py-2 rounded-lg font-bold">
+          إغلاق
+        </button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // تعريف نظام الإحداثيات UTM Zone 35N
   proj4.defs("EPSG:32635", "+proj=utm +zone=35 +datum=WGS84 +units=m +no_defs");
 
   let masterData = [];
-  let geoJsonLayer = null;
   let map, polygonGroup;
   let polygonMap = {};
-  let currentPage = 1;
-  const pageSize = 15;
+  let govChart, areaChart;
+
+  const fmt = n => new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 2 }).format(n || 0);
+
+  // Convert m² to Egyptian Agricultural Units
+  function toEgyptianLandUnits(sqMeters) {
+    const FEDDAN_SQM = 4200.83;
+    const QIRAT_SQM = 175.035;
+    const SAHM_SQM = 7.293;
+
+    let feddan = Math.floor(sqMeters / FEDDAN_SQM);
+    let remAfterFeddan = sqMeters % FEDDAN_SQM;
+
+    let qirat = Math.floor(remAfterFeddan / QIRAT_SQM);
+    let remAfterQirat = remAfterFeddan % QIRAT_SQM;
+
+    let sahm = Math.round(remAfterQirat / SAHM_SQM);
+
+    if (sahm === 24) { sahm = 0; qirat += 1; }
+    if (qirat === 24) { qirat = 0; feddan += 1; }
+
+    return `${feddan} فدان و ${qirat} قيراط و ${sahm} سهم`;
+  }
 
   function initMap() {
-    map = L.map('gisMap').setView([28.35, 28.95], 7);
+    map = L.map('gisMap').setView([29.20, 25.50], 7);
 
     const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: 'Tiles &copy; Esri'
@@ -186,7 +400,7 @@
     polygonGroup = L.layerGroup().addTo(map);
   }
 
-  // تحميل ملف data.json وقراءته ديناميكياً
+  // تحميل بيانات data.json ديناميكياً
   async function loadJSONData() {
     try {
       const response = await fetch('data.json');
@@ -198,7 +412,7 @@
       masterData = rawFeatures.map((f, idx) => {
         const props = f.attributes || {};
         return {
-          id: props.id || props.OBJECTID || `Rec-${idx + 1}`,
+          id: props.OBJECTID || `Rec-${idx + 1}`,
           owner: props.name || props.name_1 || 'لم يستدل',
           desc: props.bulding_de || 'مبنى / كينونة مكانيّة',
           areaSqm: parseFloat(props.area_m2 || props.Shape_Area || 0),
@@ -209,14 +423,14 @@
         };
       });
 
-      document.getElementById("dataBadge").innerHTML = `<i class="fa-solid fa-check"></i> تم تحميل ${masterData.length} سجل بنجاح`;
+      document.getElementById("dataBadge").textContent = `تم تحميل ${masterData.length} سجل بنجاح`;
       populateDropdowns();
       render();
 
     } catch (err) {
       console.error(err);
       document.getElementById("dataBadge").textContent = "خطأ في تحميل data.json";
-      document.getElementById("dataBadge").className = "text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-400/30 px-3 py-1 rounded-full";
+      document.getElementById("dataBadge").className = "text-xs font-normal bg-rose-500/20 text-rose-300 border border-rose-400/30 px-2.5 py-0.5 rounded-full";
     }
   }
 
@@ -238,7 +452,6 @@
       const raw = i.rawFeature;
       if (!raw || !raw.geometry || !raw.geometry.rings) return null;
 
-      // تحويل إحداثيات Esri Rings (UTM 32635) إلى WGS84 Lat/Lng
       const convertedRings = raw.geometry.rings.map(ring => 
         ring.map(pt => {
           const p = proj4("EPSG:32635", "EPSG:4326", pt);
@@ -257,27 +470,35 @@
     }).filter(Boolean);
 
     if (geoJsonFeatures.length > 0) {
-      geoJsonLayer = L.geoJSON({ type: "FeatureCollection", features: geoJsonFeatures }, {
+      const geoJsonLayer = L.geoJSON({ type: "FeatureCollection", features: geoJsonFeatures }, {
         style: {
-          color: '#2563eb',
+          color: '#ffffff',
           fillColor: '#3b82f6',
-          fillOpacity: 0.6,
-          weight: 2
+          fillOpacity: 0.65,
+          weight: 1.5
         },
         onEachFeature: (feature, layer) => {
           const props = feature.properties || {};
-          const id = props.id || props.OBJECTID;
+          const id = props.OBJECTID;
           polygonMap[id] = layer;
 
           const popupContent = `
-            <div class="text-right p-1 font-sans">
-              <h4 class="font-bold text-slate-800 text-sm mb-1">${props.name || props.name_1 || 'غير محدد'}</h4>
-              <p class="text-xs text-slate-600 mb-1"><b>الكود:</b> ${id || '-'}</p>
-              <p class="text-xs text-slate-600 mb-1"><b>الوصف:</b> ${props.bulding_de || '-'}</p>
-              <p class="text-xs text-slate-600"><b>المساحة:</b> ${parseFloat(props.area_m2 || 0).toFixed(2)} م²</p>
+            <div style="direction:rtl; text-align:right;" class="space-y-1">
+              <div style="font-weight:bold; color:#2563eb; font-size:13px; border-bottom:1px solid #ddd; padding-bottom:3px;">
+                قطعة أرض رقم: ${id}
+              </div>
+              <div style="font-size:11px; margin-top:4px;"><b>المالك:</b> ${props.name || 'لم يستدل'}</div>
+              <div style="font-size:11px;"><b>الوصف:</b> ${props.bulding_de || '-'}</div>
+              <div style="font-size:11px;"><b>المحافظة:</b> ${props.gov || '-'} (${props.sec || ''})</div>
+              <div style="font-size:11px;"><b>المساحة:</b> ${fmt(props.area_m2 || 0)} م²</div>
+              <div style="font-size:10px; color:#059669; font-weight:bold; margin-top:2px;">${toEgyptianLandUnits(props.area_m2 || 0)}</div>
             </div>
           `;
           layer.bindPopup(popupContent);
+
+          layer.on('click', () => {
+            highlightTableRow(id);
+          });
         }
       }).addTo(polygonGroup);
 
@@ -287,79 +508,174 @@
     }
   }
 
-  function renderTable(items) {
-    const tbody = document.getElementById("tableBody");
-    tbody.innerHTML = "";
-
-    const start = (currentPage - 1) * pageSize;
-    const pageItems = items.slice(start, start + pageSize);
-
-    pageItems.forEach(item => {
-      const tr = document.createElement("tr");
-      tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition border-b border-slate-100 dark:border-slate-800";
-      tr.innerHTML = `
-        <td class="p-3.5 font-bold text-brand-600 dark:text-brand-400">${item.id}</td>
-        <td class="p-3.5 font-semibold">${item.owner}</td>
-        <td class="p-3.5">${item.desc}</td>
-        <td class="p-3.5 font-mono">${item.areaSqm.toFixed(2)}</td>
-        <td class="p-3.5">${item.gov}</td>
-        <td class="p-3.5">${item.sec}</td>
-        <td class="p-3.5">${item.ssec}</td>
-        <td class="p-3.5 text-center">
-          <button onclick="zoomToFeature('${item.id}')" class="p-2 bg-brand-50 dark:bg-brand-900/40 text-brand-600 dark:text-brand-400 rounded-lg hover:bg-brand-600 hover:text-white transition">
-            <i class="fa-solid fa-crosshairs"></i>
-          </button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    document.getElementById("tableCount").textContent = `إجمالي النتائج: ${items.length}`;
-    document.getElementById("pageInfo").textContent = `الصفحة ${currentPage} من ${Math.ceil(items.length / pageSize) || 1}`;
-    document.getElementById("prevBtn").disabled = currentPage === 1;
-    document.getElementById("nextBtn").disabled = currentPage >= Math.ceil(items.length / pageSize);
-  }
-
-  window.zoomToFeature = function(id) {
+  function focusOnLand(id) {
     const layer = polygonMap[id];
     if (layer) {
-      map.fitBounds(layer.getBounds(), { maxZoom: 18 });
+      map.fitBounds(layer.getBounds(), { maxZoom: 17, duration: 1 });
       layer.openPopup();
+      highlightTableRow(id);
     }
-  };
+  }
+
+  function highlightTableRow(id) {
+    const rows = document.querySelectorAll("#tableRows tr");
+    rows.forEach(r => r.classList.remove("bg-blue-100", "dark:bg-blue-900/40"));
+    
+    const targetRow = document.getElementById(`row-${id}`);
+    if (targetRow) {
+      targetRow.classList.add("bg-blue-100", "dark:bg-blue-900/40");
+      targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
 
   function getFilteredData() {
-    const searchVal = document.getElementById("searchInput").value.toLowerCase();
-    const govVal = document.getElementById("govSelect").value;
+    const q = document.getElementById("searchInput").value.trim().toLowerCase();
+    const gov = document.getElementById("govSelect").value;
+    const status = document.getElementById("statusSelect").value;
 
     return masterData.filter(d => {
-      const matchSearch = !searchVal || d.owner.toLowerCase().includes(searchVal) || String(d.id).toLowerCase().includes(searchVal);
-      const matchGov = !govVal || d.gov === govVal;
-      return matchSearch && matchGov;
+      const matchesGov = !gov || d.gov === gov;
+      const matchesSearch = !q || [d.id, d.owner, d.desc].join(" ").toLowerCase().includes(q);
+      const isMissing = d.owner.includes("لم يستدل");
+      const matchesStatus = !status || (status === "needs_review" ? isMissing : !isMissing);
+      return matchesGov && matchesSearch && matchesStatus;
     });
   }
 
   function render() {
     const filtered = getFilteredData();
+    const totalArea = filtered.reduce((s, d) => s + d.areaSqm, 0);
+    const avgArea = filtered.length ? totalArea / filtered.length : 0;
+    const missingCount = filtered.filter(d => d.owner.includes("لم يستدل")).length;
+
+    // Update KPIs
+    document.getElementById("kpiCount").textContent = fmt(filtered.length);
+    document.getElementById("kpiTotalArea").textContent = `${fmt(totalArea)} م²`;
+    document.getElementById("kpiTotalEgyptArea").textContent = toEgyptianLandUnits(totalArea);
+
+    document.getElementById("kpiAvgArea").textContent = `${fmt(avgArea)} م²`;
+    document.getElementById("kpiAvgEgyptArea").textContent = toEgyptianLandUnits(avgArea);
+
+    document.getElementById("kpiMissing").textContent = fmt(missingCount);
+    document.getElementById("resultCountStats").textContent = `إجمالي القطع المعروضة: ${fmt(filtered.length)} من أصل ${fmt(masterData.length)}`;
+
+    // Render Table
+    const tbody = document.getElementById("tableRows");
+    tbody.innerHTML = filtered.slice(0, 100).map(d => {
+      const isMissing = d.owner.includes("لم يستدل");
+
+      return `
+        <tr id="row-${d.id}" class="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition">
+          <td class="p-3 font-bold text-blue-600 dark:text-blue-400">${d.id}</td>
+          <td class="p-3 font-medium">${d.owner}</td>
+          <td class="p-3">${d.desc}</td>
+          <td class="p-3">${d.gov} / ${d.sec}</td>
+          <td class="p-3 font-mono">${fmt(d.areaSqm)}</td>
+          <td class="p-3">
+            ${isMissing 
+              ? `<span class="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i>تحتاج مراجعة</span>`
+              : `<span class="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fa-solid fa-check me-1"></i>مكتملة</span>`
+            }
+          </td>
+          <td class="p-3 text-center">
+            <button onclick="focusOnLand('${d.id}')" class="bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 hover:bg-blue-600 hover:text-white px-2.5 py-1 rounded transition text-[11px] font-bold">
+              <i class="fa-solid fa-crosshairs me-1"></i>تحديد بالخريطة
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    if (filtered.length > 100) {
+      tbody.innerHTML += `<tr><td colspan="7" class="p-3 text-center text-xs text-slate-400 font-semibold">يتم عرض أول 100 سجل مطابق للفلتر لضمان سرعة الأداء...</td></tr>`;
+    }
+
     renderMapPolygons(filtered);
-    renderTable(filtered);
+    updateCharts(filtered);
   }
 
-  // Event Listeners
-  document.getElementById("searchInput").addEventListener("input", () => { currentPage = 1; render(); });
-  document.getElementById("govSelect").addEventListener("change", () => { currentPage = 1; render(); });
+  function initCharts() {
+    const ctx1 = document.getElementById("govChart").getContext("2d");
+    govChart = new Chart(ctx1, {
+      type: "doughnut",
+      data: { labels: [], datasets: [{ data: [], backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'] }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom", labels: { font: { family: 'Cairo' } } } }
+      }
+    });
 
-  document.getElementById("prevBtn").addEventListener("click", () => {
-    if (currentPage > 1) { currentPage--; renderTable(getFilteredData()); }
-  });
-  document.getElementById("nextBtn").addEventListener("click", () => {
-    if (currentPage < Math.ceil(getFilteredData().length / pageSize)) { currentPage++; renderTable(getFilteredData()); }
-  });
+    const ctx2 = document.getElementById("areaChart").getContext("2d");
+    areaChart = new Chart(ctx2, {
+      type: "bar",
+      data: { labels: [], datasets: [{ label: "المساحة بالمتر المربع", data: [], backgroundColor: "#2563eb", borderRadius: 6 }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { font: { family: 'Cairo' } } },
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  function updateCharts(list) {
+    const govCounts = {};
+    list.forEach(d => {
+      govCounts[d.gov] = (govCounts[d.gov] || 0) + 1;
+    });
+
+    govChart.data.labels = Object.keys(govCounts);
+    govChart.data.datasets[0].data = Object.values(govCounts);
+    govChart.update();
+
+    // Top 6 areas
+    const sortedByArea = [...list].sort((a,b) => b.areaSqm - a.areaSqm).slice(0, 6);
+    areaChart.data.labels = sortedByArea.map(d => `معرّف ${d.id}`);
+    areaChart.data.datasets[0].data = sortedByArea.map(d => d.areaSqm);
+    areaChart.update();
+  }
+
+  function exportCSV() {
+    const filtered = getFilteredData();
+    let csv = "\uFEFFOBJECTID,المالك,الوصف,المحافظة,المركز,المساحة_م2\n";
+    filtered.forEach(d => {
+      csv += `"${d.id}","${d.owner}","${d.desc}","${d.gov}","${d.sec}",${d.areaSqm}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'spatial_data_export.csv';
+    a.click();
+  }
+
+  function resetFilters() {
+    document.getElementById("searchInput").value = "";
+    document.getElementById("govSelect").value = "";
+    document.getElementById("statusSelect").value = "";
+    render();
+  }
+
+  function openModal() { document.getElementById("snapshotModal").classList.remove("hidden"); }
+  function closeModal() { document.getElementById("snapshotModal").classList.add("hidden"); }
+
+  function toggleDarkMode() {
+    document.documentElement.classList.toggle('dark');
+  }
+
+  document.getElementById("searchInput").addEventListener("input", render);
+  document.getElementById("govSelect").addEventListener("change", render);
+  document.getElementById("statusSelect").addEventListener("change", render);
 
   document.addEventListener("DOMContentLoaded", () => {
     initMap();
+    initCharts();
     loadJSONData();
   });
-  </script>
+</script>
 </body>
 </html>

@@ -159,8 +159,8 @@
         <!-- Legend & Controls -->
         <div class="flex items-center gap-2 text-xs flex-wrap">
           <span class="text-slate-500 dark:text-slate-400 font-medium ml-1">التصنيفات:</span>
-          <span class="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-500/30"><span class="w-2.5 h-2.5 rounded-full bg-[#10b981]"></span>مبنى خرساني</span>
-          <span class="inline-flex items-center gap-1 bg-orange-500/10 text-orange-700 dark:text-orange-300 font-bold px-2 py-0.5 rounded border border-orange-500/30"><span class="w-2.5 h-2.5 rounded-full bg-[#f97316]"></span>مخزن / سكن</span>
+          <span class="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-500/30"><span class="w-2.5 h-2.5 rounded-full bg-[#10b981]"></span>أرض زراعية</span>
+          <span class="inline-flex items-center gap-1 bg-orange-500/10 text-orange-700 dark:text-orange-300 font-bold px-2 py-0.5 rounded border border-orange-500/30"><span class="w-2.5 h-2.5 rounded-full bg-[#f97316]"></span>أرض فضاء</span>
           <span class="inline-flex items-center gap-1 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 font-bold px-2 py-0.5 rounded border border-cyan-500/30"><span class="w-2.5 h-2.5 rounded-full bg-[#06b6d4]"></span>خدمات ومرافق</span>
           <span class="inline-flex items-center gap-1 bg-purple-500/10 text-purple-700 dark:text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/30"><span class="w-2.5 h-2.5 rounded-full bg-[#a855f7]"></span>أخرى</span>
         </div>
@@ -250,7 +250,7 @@
             <tr>
               <th class="p-3">المعرّف (OBJECTID)</th>
               <th class="p-3">اسم المالك / الجهة</th>
-              <th class="p-3">الوصف الإنشائي</th>
+              <th class="p-3">نوع النشاط / المحصول</th>
               <th class="p-3">المحافظة / المركز</th>
               <th class="p-3">المساحة (م²)</th>
               <th class="p-3">حالة المراجعة</th>
@@ -400,26 +400,27 @@
     polygonGroup = L.layerGroup().addTo(map);
   }
 
-  // تحميل بيانات data.json ديناميكياً
+  // تحميل بيانات الملف المحدث ديناميكياً (دعم الهيكل الجديد)
   async function loadJSONData() {
     try {
-      const response = await fetch('data.json');
-      if (!response.ok) throw new Error("تعذر قراءة ملف data.json");
+      const response = await fetch('data_4.json');
+      if (!response.ok) throw new Error("تعذر قراءة ملف البيانات");
       
       const jsonData = await response.json();
-      const rawFeatures = jsonData.features || [];
+      
+      // استخراج المصفوفة سواء كانت داخل مفتاح "الأراضي المجمعة" أو مباشرة كـ Array
+      const rawRecords = Array.isArray(jsonData) ? jsonData : (jsonData["الأراضي المجمعة"] || jsonData.features || []);
 
-      masterData = rawFeatures.map((f, idx) => {
-        const props = f.attributes || {};
+      masterData = rawRecords.map((props, idx) => {
         return {
-          id: props.OBJECTID || `Rec-${idx + 1}`,
-          owner: props.name || props.name_1 || 'لم يستدل',
-          desc: props.bulding_de || 'مبنى / كينونة مكانيّة',
-          areaSqm: parseFloat(props.area_m2 || props.Shape_Area || 0),
-          gov: props.gov || 'غير محدد',
-          sec: props.sec || 'غير محدد',
-          ssec: props.ssec || 'غير محدد',
-          rawFeature: f
+          id: props.OBJECTID || props["المعرف (OBJECTID/FID)"] || `Rec-${idx + 1}`,
+          owner: props["اسم المالك"] || props.name || 'لم يستدل',
+          desc: props["نوع المحصول"] || props.Activity || props["حالة الارض"] || 'أرض فضاء / متباينة',
+          areaSqm: parseFloat(props.Shape_Area || props.area_m2 || 0),
+          gov: props["المحافظة"] || props.gov || 'غير محدد',
+          sec: props["المركز"] || props.sec || 'غير محدد',
+          ssec: props["القرية / الشياخة"] || props.ssec || 'غير محدد',
+          rawFeature: props
         };
       });
 
@@ -429,7 +430,7 @@
 
     } catch (err) {
       console.error(err);
-      document.getElementById("dataBadge").textContent = "خطأ في تحميل data.json";
+      document.getElementById("dataBadge").textContent = "خطأ في تحميل بيانات الملف";
       document.getElementById("dataBadge").className = "text-xs font-normal bg-rose-500/20 text-rose-300 border border-rose-400/30 px-2.5 py-0.5 rounded-full";
     }
   }
@@ -450,6 +451,7 @@
 
     const geoJsonFeatures = items.map(i => {
       const raw = i.rawFeature;
+      // التحقق من وجود حلقات الإحداثيات geometry rings إن وجدت، أو تخطيها برسم آمن
       if (!raw || !raw.geometry || !raw.geometry.rings) return null;
 
       const convertedRings = raw.geometry.rings.map(ring => 
@@ -465,7 +467,7 @@
           type: "Polygon",
           coordinates: convertedRings
         },
-        properties: raw.attributes || {}
+        properties: raw
       };
     }).filter(Boolean);
 
@@ -479,7 +481,7 @@
         },
         onEachFeature: (feature, layer) => {
           const props = feature.properties || {};
-          const id = props.OBJECTID;
+          const id = props.OBJECTID || props["المعرف (OBJECTID/FID)"];
           polygonMap[id] = layer;
 
           const popupContent = `
@@ -487,11 +489,10 @@
               <div style="font-weight:bold; color:#2563eb; font-size:13px; border-bottom:1px solid #ddd; padding-bottom:3px;">
                 قطعة أرض رقم: ${id}
               </div>
-              <div style="font-size:11px; margin-top:4px;"><b>المالك:</b> ${props.name || 'لم يستدل'}</div>
-              <div style="font-size:11px;"><b>الوصف:</b> ${props.bulding_de || '-'}</div>
-              <div style="font-size:11px;"><b>المحافظة:</b> ${props.gov || '-'} (${props.sec || ''})</div>
-              <div style="font-size:11px;"><b>المساحة:</b> ${fmt(props.area_m2 || 0)} م²</div>
-              <div style="font-size:10px; color:#059669; font-weight:bold; margin-top:2px;">${toEgyptianLandUnits(props.area_m2 || 0)}</div>
+              <div style="font-size:11px; margin-top:4px;"><b>المالك:</b> ${props["اسم المالك"] || 'لم يستدل'}</div>
+              <div style="font-size:11px;"><b>المحافظة:</b> ${props["المحافظة"] || '-'} (${props["المركز"] || ''})</div>
+              <div style="font-size:11px;"><b>المساحة:</b> ${fmt(props.Shape_Area || 0)} م²</div>
+              <div style="font-size:10px; color:#059669; font-weight:bold; margin-top:2px;">${toEgyptianLandUnits(props.Shape_Area || 0)}</div>
             </div>
           `;
           layer.bindPopup(popupContent);
@@ -536,7 +537,7 @@
     return masterData.filter(d => {
       const matchesGov = !gov || d.gov === gov;
       const matchesSearch = !q || [d.id, d.owner, d.desc].join(" ").toLowerCase().includes(q);
-      const isMissing = d.owner.includes("لم يستدل");
+      const isMissing = d.owner.includes("لم يستدل") || !d.owner.trim();
       const matchesStatus = !status || (status === "needs_review" ? isMissing : !isMissing);
       return matchesGov && matchesSearch && matchesStatus;
     });
@@ -546,7 +547,7 @@
     const filtered = getFilteredData();
     const totalArea = filtered.reduce((s, d) => s + d.areaSqm, 0);
     const avgArea = filtered.length ? totalArea / filtered.length : 0;
-    const missingCount = filtered.filter(d => d.owner.includes("لم يستدل")).length;
+    const missingCount = filtered.filter(d => d.owner.includes("لم يستدل") || !d.owner.trim()).length;
 
     // Update KPIs
     document.getElementById("kpiCount").textContent = fmt(filtered.length);
@@ -562,7 +563,7 @@
     // Render Table
     const tbody = document.getElementById("tableRows");
     tbody.innerHTML = filtered.slice(0, 100).map(d => {
-      const isMissing = d.owner.includes("لم يستدل");
+      const isMissing = d.owner.includes("لم يستدل") || !d.owner.trim();
 
       return `
         <tr id="row-${d.id}" class="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition">
@@ -671,7 +672,8 @@
   document.getElementById("govSelect").addEventListener("change", render);
   document.getElementById("statusSelect").addEventListener("change", render);
 
-  document.addEventListener("DOMContentLoaded", () => {
+  // تشغيل التهيئة عند تحميل الصفحة
+  window.addEventListener('DOMContentLoaded', () => {
     initMap();
     initCharts();
     loadJSONData();

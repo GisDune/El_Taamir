@@ -186,15 +186,6 @@
     polygonGroup = L.layerGroup().addTo(map);
   }
 
-  // تحويل إحداثيات UTM 32635 إلى WGS84 Lat/Lng
-  function convertUTMToLatLng(coords) {
-    if (Array.isArray(coords[0])) {
-      return coords.map(convertUTMToLatLng);
-    }
-    const converted = proj4("EPSG:32635", "EPSG:4326", coords);
-    return [converted[1], converted[0]]; // Return [lat, lng] for Leaflet
-  }
-
   // تحميل ملف data.json وقراءته ديناميكياً
   async function loadJSONData() {
     try {
@@ -205,12 +196,12 @@
       const rawFeatures = jsonData.features || [];
 
       masterData = rawFeatures.map((f, idx) => {
-        const props = f.properties || f.attributes || {};
+        const props = f.attributes || {};
         return {
           id: props.id || props.OBJECTID || `Rec-${idx + 1}`,
-          owner: props.name_1 || props.NAME || props.Owner || 'لم يستدل',
-          desc: props.bulding_de || props.SubCat || 'مبنى / كينونة مكانيّة',
-          areaSqm: parseFloat(props.area_m2 || props.Area_Sqm || 0),
+          owner: props.name || props.name_1 || 'لم يستدل',
+          desc: props.bulding_de || 'مبنى / كينونة مكانيّة',
+          areaSqm: parseFloat(props.area_m2 || props.Shape_Area || 0),
           gov: props.gov || 'غير محدد',
           sec: props.sec || 'غير محدد',
           ssec: props.ssec || 'غير محدد',
@@ -244,22 +235,26 @@
     polygonMap = {};
 
     const geoJsonFeatures = items.map(i => {
-      const feat = JSON.parse(JSON.stringify(i.rawFeature));
-      if (feat.geometry && feat.geometry.rings) {
-        // تحويل Esri Rings إلى GeoJSON Polygon coordinates مع فك الإسقاط
-        const convertedRings = feat.geometry.rings.map(ring => 
-          ring.map(pt => {
-            const p = proj4("EPSG:32635", "EPSG:4326", pt);
-            return [p[0], p[1]];
-          })
-        );
-        feat.geometry = {
+      const raw = i.rawFeature;
+      if (!raw || !raw.geometry || !raw.geometry.rings) return null;
+
+      // تحويل إحداثيات Esri Rings (UTM 32635) إلى WGS84 Lat/Lng
+      const convertedRings = raw.geometry.rings.map(ring => 
+        ring.map(pt => {
+          const p = proj4("EPSG:32635", "EPSG:4326", pt);
+          return [p[0], p[1]]; // [lng, lat]
+        })
+      );
+
+      return {
+        type: "Feature",
+        geometry: {
           type: "Polygon",
           coordinates: convertedRings
-        };
-      }
-      return feat;
-    }).filter(f => f && f.geometry);
+        },
+        properties: raw.attributes || {}
+      };
+    }).filter(Boolean);
 
     if (geoJsonFeatures.length > 0) {
       geoJsonLayer = L.geoJSON({ type: "FeatureCollection", features: geoJsonFeatures }, {
@@ -270,14 +265,14 @@
           weight: 2
         },
         onEachFeature: (feature, layer) => {
-          const props = feature.properties || feature.attributes || {};
+          const props = feature.properties || {};
           const id = props.id || props.OBJECTID;
           polygonMap[id] = layer;
 
           const popupContent = `
             <div class="text-right p-1 font-sans">
-              <h4 class="font-bold text-slate-800 text-sm mb-1">${props.name_1 || 'غير محدد'}</h4>
-              <p class="text-xs text-slate-600 mb-1"><b>الكود:</b> ${id}</p>
+              <h4 class="font-bold text-slate-800 text-sm mb-1">${props.name || props.name_1 || 'غير محدد'}</h4>
+              <p class="text-xs text-slate-600 mb-1"><b>الكود:</b> ${id || '-'}</p>
               <p class="text-xs text-slate-600 mb-1"><b>الوصف:</b> ${props.bulding_de || '-'}</p>
               <p class="text-xs text-slate-600"><b>المساحة:</b> ${parseFloat(props.area_m2 || 0).toFixed(2)} م²</p>
             </div>
